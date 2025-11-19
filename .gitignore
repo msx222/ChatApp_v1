@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# venv
+venv/
+.env/
+*.env
+
+# mac / windows
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/
+
+# Vector DB
+data/vectorstore/
+
+# API keys（絶対アップしない）
+configs/*.secret.yaml
+*.key
+*.env
