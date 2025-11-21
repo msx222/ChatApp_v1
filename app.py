@@ -1,228 +1,217 @@
 import streamlit as st
-from dotenv import load_dotenv
-load_dotenv()
 
-# ================================
-# Import Stub Workflows
-# ================================
-from src.workflows.technical.graph import technical_graph
-from src.workflows.failure.graph import failure_graph
-from src.workflows.law.graph import law_graph
-from src.workflows.pdf.graph import pdf_graph
-from src.workflows.general.graph import general_graph
-
-# Router
-from src.router.router_chain import classify_query
-
-# UI Components
-from ui.components.chat_display import render_chat, tool_selector, radio_with_tooltips
-from ui.components.chat_input import render_input_box
-
-
-# ================================
+# =========================================================
 # Streamlit Settings
-# ================================
+# =========================================================
 st.set_page_config(
     page_title="保安基準AI",
     page_icon="🚗",
-    layout="wide"
+    layout="wide",
 )
+
 # =========================================================
-# ChatGPT風「中央固定幅」CSS
+# 中央幅（ChatGPT風）
 # =========================================================
-st.markdown(
-    """
-    <style>
-    /* ページ全体の中央固定幅レイアウト */
-    .block-container {
-        max-width: 820px !important;   /* ChatGPTに近い幅 */
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+.block-container {
+    max-width: 1100px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =========================================================
-# ★ ③ 固定 NavBar（必ず CSS の後）
+# Streamlit 標準ヘッダー非表示（安定）
 # =========================================================
-NAVBAR_HEIGHT = 60
+st.markdown("""
+<style>
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+NAVBAR_HEIGHT = 50
+
+# ==============================
+# 固定 Navbar
+# ==============================
 def navbar():
-    st.markdown(f"""
-    <div style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: {NAVBAR_HEIGHT}px;
-        background-color: #ffffff;
-        border-bottom: 1px solid #dcdcdc;
-        display: flex;
-        align-items: center;
-        padding: 0 25px;
-        z-index: 99999999;
-    ">
-        <img src="https://www.mitsubishielectric-mobility.com/assets_gws_template_responsive/img/logo_ja.svg"
-             style="height: 45px; margin-right: 12px;">
-        <span style="font-size: 26px; font-weight:600;">🚗 品情二　業務サポートAI（PoC版）</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: {NAVBAR_HEIGHT}px;
+            background-color: white;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            padding: 0 25px;
+            z-index: 99999999;
+        ">
+            <img src="https://www.mitsubishielectric-mobility.com/assets_gws_template_responsive/img/logo_ja.svg"
+                 style="height: 42px; margin-right: 12px;">
+            <span style="font-size: 24px; font-weight: 600;">
+                🚗 品情二 業務サポートAI（PoC版）
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 navbar()
 
+# =========================================================
+# Navbar 押し下げ
+# =========================================================
+st.markdown(
+    f"""
+<style>
+div[data-testid="stAppViewContainer"] {{
+    padding-top: {NAVBAR_HEIGHT + 5}px !important;
+}}
+section[data-testid="stMain"] {{
+    padding-top: {NAVBAR_HEIGHT + 5}px !important;
+}}
+.block-container {{
+    padding-top: {NAVBAR_HEIGHT + 5}px !important;
+}}
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
-# ================================
-# Session Initialization
-# ================================
+# =========================================================
+# 入力欄をメインエリア幅に揃える
+# =========================================================
+st.markdown("""
+<style>
+/* ChatInput を中央幅に収める */
+div[data-testid="stChatInput"] {
+    max-width: 740px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# ＋ボタン UI（入力欄の左隣、下部固定）
+# =========================================================
+
+if "show_mode_popup" not in st.session_state:
+    st.session_state.show_mode_popup = False
+
+if "mode" not in st.session_state:
+    st.session_state.mode = "通常チャット"
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "workflow_mode" not in st.session_state:
-    st.session_state.workflow_mode = "自動判別"
+# ------------------------------
+# ＋ボタンとポップアップの CSS
+# ------------------------------
+st.markdown("""
+<style>
 
-if "show_mode_menu" not in st.session_state:
-    st.session_state.show_mode_menu = False
+.chat-input-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 740px;                     /* ChatInput と同じ幅 */
+    display: flex;
+    align-items: center;
+    padding-bottom: 12px;
+    z-index: 999999;
+}
 
+.plus-btn {
+    width: 40px;
+    height: 40px;
+    margin-right: 8px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 24px;
+    line-height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
 
+.plus-btn:hover {
+    background: #f2f2f2;
+}
 
-# ================================
-# ChatGPT風 入力UI（＋ボタン付き）
-# ================================
-def chat_input_with_mode_selector():
+/* 上向きポップアップ */
+.mode-popup {
+    position: fixed;
+    bottom: 65px;  /* ChatInput の真上に出る */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 1000000;
+}
 
-    col_plus, col_input = st.columns([0.08, 0.92])
-
-    # + ボタン
-    with col_plus:
-        clicked = st.button("＋", key="open_menu", help="AIモードを選択")
-
-    # テキスト入力
-    with col_input:
-        user_text = st.chat_input("メッセージを入力してください")
-
-    return user_text, clicked
-
-
-
-# ================================
-# Workflow 実行
-# ================================
-def run_workflow(workflow_name: str, query: str):
-
-    graphs = {
-        "technical": technical_graph,
-        "failure": failure_graph,
-        "law": law_graph,
-        "pdf": pdf_graph,
-        "general": general_graph,
-    }
-
-    graph = graphs.get(workflow_name)
-    if graph is None:
-        return "エラー：対応するワークフローがありません。"
-
-    result = graph.invoke({"user_query": query})
-    return result.get("answer", "エラー：回答生成に失敗しました。")
-
-
-
-# ================================
-# UI：メイン画面
-# ================================
-# st.title("🚗 保安基準AI（統合ワークフロー版）")
-
-# チャット表示
-render_chat(st.session_state.messages)
+</style>
+""", unsafe_allow_html=True)
 
 
+# ------------------------------
+# 入力欄と＋ボタン（下部固定）
+# ------------------------------
+st.markdown("<div class='chat-input-wrapper'>", unsafe_allow_html=True)
 
-# ================================
-# 入力欄
-# ================================
-user_input, menu_clicked = chat_input_with_mode_selector()
+# ＋ボタン（左側）
+if st.button("＋", key="plus_button"):
+    st.session_state.show_mode_popup = not st.session_state.show_mode_popup
 
+# chat_input（右側）
+user_prompt = st.chat_input("メッセージを入力してください")
 
+st.markdown("</div>", unsafe_allow_html=True)
 
-# ================================
-# モード選択メニュー
-# ================================
-if menu_clicked:
-    # メニュー表示/非表示を切り替え
-    st.session_state.show_mode_menu = not st.session_state.show_mode_menu
-
-if st.session_state.show_mode_menu:
-
-    # st.markdown("### 🔧 モード選択（エージェント選択）")
-    # if st.session_state.show_mode_menu:
-    #     tool_options = [
-    #         "技術基準・適合判定",
-    #         "PDF解析",
-    #         "不具合解析",
-    #         "法制度説明",
-    #         "通常QA",
-    #     ]
-    #
-    #     tool_desc = {
-    #         "技術基準・適合判定": "部品名＋寸法から適合可否を判定します。",
-    #         "PDF解析": "PDF・画像からテキスト抽出し基準判定に活用します。",
-    #         "不具合解析": "症状から原因推定を行います。",
-    #         "法制度説明": "道路運送車両法や制度を分かりやすく説明します。",
-    #         "通常QA": "一般的な質問に対応するモードです。",
-    #     }
-    #
-    #     selected = radio_with_tooltips(
-    #         "使用するAIモード",
-    #         tool_options,
-    #         tool_desc,
-    #         key="workflow_radio"
-    #     )
-    #     if selected:
-    #         st.session_state.workflow_mode = selected
-
-    st.session_state.workflow_mode = st.radio(
-        "使用するAIモードを選択してください",
-        options=[
-            "自動判別",
-            "技術基準・適合判定",
-            "不具合解析",
-            "法制度説明",
-            "PDF解析",
-            "通常QA",
-        ],
-        key="workflow_mode_radio",
+# ------------------------------
+# 上向きのポップアップ（ラジオ）
+# ------------------------------
+if st.session_state.show_mode_popup:
+    st.markdown("<div class='mode-popup'>", unsafe_allow_html=True)
+    st.write("📌 モード選択")
+    st.session_state.mode = st.radio(
+        "",
+        ["通常チャット", "PDF解析（ダミー）", "技術基準判定（ダミー）"],
     )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-
-
-# ================================
-# Query Handling
-# ================================
-if user_input:
-
-    # 1. ユーザー発言の追加
-    st.session_state.messages.append({"role": "user", "content": user_input})
-
-    # 2. ワークフロー決定
-    mode = st.session_state.workflow_mode
-
-    if mode == "自動判別":
-        detected = classify_query(user_input)
-        workflow = detected["workflow"]
-    else:
-        workflow = {
-            "技術基準・適合判定": "technical",
-            "不具合解析": "failure",
-            "法制度説明": "law",
-            "PDF解析": "pdf",
-            "通常QA": "general"
-        }.get(mode, "general")
-
-    # 3. ワークフロー実行
-    answer = run_workflow(workflow, user_input)
-
-    # 4. AIメッセージとして追加
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-
+# =========================================================
+# チャット処理
+# =========================================================
+if user_prompt:
+    st.session_state.messages.append({"role": "user", "content": user_prompt})
+    reply = f"モード: **{st.session_state.mode}**\n\n入力: {user_prompt}"
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+    st.session_state.show_mode_popup = False
     st.rerun()
+
+# =========================================================
+# チャットログ
+# =========================================================
+st.title("ChatGPT風アプリ（デモ）")
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+

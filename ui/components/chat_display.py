@@ -7,7 +7,48 @@ import streamlit as st
 import streamlit as st
 
 def render_chat(messages):
+    st.markdown("""
+    <style>
+        .user-msg-container {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin: 8px 0;
+        }
+        .user-bubble {
+            max-width: 75%;
+            background: #e8f1ff;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #c9ddff;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+        msg_type = msg.get("type", "markdown")
+
+        if role == "user":
+            st.markdown(
+                f"""
+                <div class="user-msg-container">
+                    <div class="user-bubble">{content}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            # Markdown / 判定AI も Markdown 出力
+            st.markdown(content)
+
+
+def render_chat_2col(messages):
+
+    # ---- CSS（あなたのオリジナルCSSをそのまま使用） ----
     st.markdown(
         """
         <style>
@@ -22,9 +63,10 @@ def render_chat(messages):
             border: 1px solid rgba(0,0,0,0.06);
             line-height: 1.6;
             font-size: 15px;
+            word-break: break-word;
         }
 
-        /* === ユーザー（右寄せ・小さめ） === */
+        /* === ユーザー（右寄せ） === */
         .bubble-right {
             display: flex;
             justify-content: flex-end;
@@ -34,10 +76,10 @@ def render_chat(messages):
         .user-bubble {
             background: #f4f9ff;
             border: 1px solid #d5e8ff;
-            max-width: 80%;      /* ユーザーは吹き出し風 */
+            max-width: 80%;
         }
 
-        /* === AI（幅いっぱいカード） === */
+        /* === AI（左・全幅カード） === */
         .assistant-container {
             width: 100%;
             display: flex;
@@ -45,8 +87,7 @@ def render_chat(messages):
         }
 
         .assistant-bubble {
-            width: 100%;         /* 左寄せではなく「幅いっぱい」 */
-            background: #ffffff;
+            max-width: 100%;
         }
 
         </style>
@@ -54,28 +95,53 @@ def render_chat(messages):
         unsafe_allow_html=True
     )
 
+    # ---- メッセージ描画 ----
     for msg in messages:
-        content = msg["content"].replace("\n", "<br>")
+        role = msg.get("role", "assistant")
+        content = msg.get("content", "")
+        mtype = msg.get("type", "text")   # "text" or "html"
 
-        if msg["role"] == "user":
+        # ユーザー
+        if role == "user":
             st.markdown(
                 f"""
                 <div class="bubble-right">
-                    <div class="chat-bubble user-bubble">{content}</div>
+                    <div class="chat-bubble user-bubble">
+                        {content}
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
+        # ---- AI ----
         else:
-            st.markdown(
-                f"""
-                <div class="assistant-container">
-                    <div class="chat-bubble assistant-bubble">{content}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            # HTMLメッセージはそのまま描画
+            if mtype == "html":
+                st.markdown(
+                    f"""
+                    <div class="assistant-container">
+                        <div class="chat-bubble assistant-bubble">
+                            {content}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            # テキストは Markdown として表示
+            else:
+                st.markdown(
+                    f"""
+                    <div class="assistant-container">
+                        <div class="chat-bubble assistant-bubble">
+                            {content}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
 
 # ================================
 # ChatGPT風 tool selector（説明付きカード UI）
