@@ -1,4 +1,20 @@
 import streamlit as st
+from dotenv import load_dotenv
+from langchain_core.runnables import AddableDict
+from openai import OpenAI
+import os
+
+# Load .env
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_PATH = os.path.join(BASE_DIR, ".env")
+load_dotenv(ENV_PATH)
+
+# =======================================
+# ★ 法令適合判定AIワークフロー
+# =======================================
+from src.workflows.judgement_ai.graph import build_judgement_graph
+# Chat UI Components
+from ui.components.chat_display import render_chat
 
 # =========================================================
 # Streamlit Settings
@@ -15,37 +31,13 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    max-width: 1000px !important;
+    max-width: 900px !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-
-# st.markdown("""
-# <style>
-#     /* Streamlit 標準ヘッダーを完全非表示 */
-#     header[data-testid="stHeader"] {
-#         display:true !important;
-#     }
-# </style>
-# """, unsafe_allow_html=True)
-#
-# st.markdown("""
-# <style>
-#
-#     /* サイドバー折りたたみ（collapse）ボタンを完全非表示 */
-#     button[aria-label="Toggle sidebar"],
-#     button[data-testid="stSidebarCollapseButton"],
-#     span[data-testid="stSidebarToggleIcon"] {
-#         display: none !important;
-#         visibility: hidden !important;
-#         pointer-events: none !important;
-#     }
-#
-# </style>
-# """, unsafe_allow_html=True)
 
 NAVBAR_HEIGHT = 40
 
@@ -79,70 +71,6 @@ def navbar():
     )
 
 navbar()
-
-# def navbar():
-#     # 1) Navbar の HTML
-#     st.markdown(
-#         f"""
-#         <div class="custom-navbar">
-#             <img src="https://www.mitsubishielectric-mobility.com/assets_gws_template_responsive/img/logo_ja.svg"
-#                  style="height: 35px; margin-right: 12px;">
-#             <span class="navbar-title">
-#                 🚗 品情二 業務サポートAI (PoC版)
-#             </span>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-#
-#     # 2) ライト/ダークテーマ切替 CSS
-#     st.markdown(
-#         f"""
-#         <style>
-#
-#         /* ==== Navbar の共通スタイル ==== */
-#         .custom-navbar {{
-#             position: fixed;
-#             top: 0;
-#             left: 0;
-#             width: 100%;
-#             height: {NAVBAR_HEIGHT}px;
-#             display: flex;
-#             align-items: center;
-#             padding: 0 25px;
-#             z-index: 9999999;
-#             border-bottom: 1px solid var(--border-color);
-#             background-color: var(--bg-color);
-#
-#             color: var(--text-color);
-#         }}
-#
-#         .navbar-title {{
-#             font-size: 19px;
-#             font-weight: 600;
-#             color: var(--text-color);
-#         }}
-#
-#         /* ==== Lightテーマ用 ==== */
-#         body[data-theme="light"] {{
-#             --bg-color: #ffffff;
-#             --text-color: #000000;
-#             --border-color: #dddddd;
-#         }}
-#
-#         /* ==== Darkテーマ用 ==== */
-#         body[data-theme="dark"] {{
-#             --bg-color: #0e1117;
-#             --text-color: #ffffff;
-#             --border-color: #333333;
-#         }}
-#
-#         </style>
-#         """,
-#         unsafe_allow_html=True
-#     )
-#
-# navbar()
 
 # ==============================
 # ★ ここがさっきエラー出てたところ（完全版CSS）
@@ -185,52 +113,256 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+
+/* ==============================
+   ChatGPT 風ユーザーバブル
+   ============================== */
+
+/* Chatメッセージの全体コンテナ */
+.stChatMessage {
+    padding: 0 !important;
+    margin-bottom: 10px !important;
+}
+
+/* --- ユーザー（右寄せ） --- */
+.stChatMessage[data-testid="stChatMessage-user"] {
+    display: flex;
+    justify-content: flex-end;  /* 右寄せ */
+}
+
+/* バブル本体 */
+.stChatMessage[data-testid="stChatMessage-user"] .stChatMessageContent {
+    background: #e7f3ff;               /* ChatGPTユーザー色(青系) */
+    color: #1a1a1a !important;
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 75%;                    /* ChatGPTの幅感 */
+    border: 1px solid #c7e0ff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* テキスト要素の余白調整 */
+.stChatMessage[data-testid="stChatMessage-user"] .stMarkdown {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+
+/* ==============================
+   AI バブル（左寄せ）
+   ============================== */
+.stChatMessage[data-testid="stChatMessage-assistant"] {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.stChatMessage[data-testid="stChatMessage-assistant"] .stChatMessageContent {
+    background: #ffffff;
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 85%;
+    border: 1px solid #eee;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.stChatMessage[data-testid="stChatMessage-assistant"] .stMarkdown {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+
 # ==============================
-# チャット部分（ダミー）
+# チャット履歴
 # ==============================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# ==============================
+# サイドバー（モード選択）
+# ==============================
 with st.sidebar:
-    # st.title("💬 ChatGPT風UI Demo")
+
     mode = st.radio(
-        "モード選択",
-        ["通常チャット", "PDF解析（ダミー）", "技術基準判定（ダミー）"],
+        "✨AIモード選択",
+        ["通常チャット", "法令適合判定", "PDF解析"],
     )
     st.markdown("---")
-    st.markdown("これは ChatGPT 風の UI を再現するためのデモです。")
-    # Using object notation
-    add_selectbox = st.sidebar.selectbox(
-        "How would you like to be contacted?",
-        ("Email", "Home phone", "Mobile phone")
-    )
+    # mode = st.radio(
+    #     "🛠️自動化ツール",
+    #     ["異議申請処理",],
+    # )
 
-    # Using "with" notation
-    add_radio = st.radio(
-        "Choose a shipping method",
-        ("Standard (5-15 days)", "Express (2-5 days)")
-    )
-    color = st.select_slider(
-        "Select a color of the rainbow",
-        options=[
-            "red",
-            "orange",
-            "yellow",
-            "green",
-            "blue",
-            "indigo",
-            "violet",
-        ],
-    )
 
-# st.title("ChatGPT風アプリ（デモ）")
+# # ==============================
+# # チャット履歴表示
+# # ==============================
+# for msg in st.session_state.messages:
+#     with st.chat_message(msg["role"]):
+#         st.markdown(msg["content"])
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# =========================================================
+# Chat表示
+# =========================================================
+render_chat(st.session_state.messages)
 
-if prompt := st.chat_input("メッセージを入力してください", accept_file="multiple",):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    dummy_response = f"これは **{mode} モード** のダミー回答です。\n\n入力: `{prompt}`"
-    st.session_state.messages.append({"role": "assistant", "content": dummy_response})
-    st.rerun()
+
+
+# ==============================
+# 入力処理
+# ==============================
+#  =========================================================
+# 判定結果 → Markdown に変換（過去事例つき）
+# =========================================================
+def generate_judgement_markdown(final_result):
+    md = []
+    overall = final_result["overall_judgement"]
+
+    md.append(f"#### 📘 技術基準・適合判定（総合判定：{overall}）\n")
+
+    for art in final_result["articles"]:
+        md.append("---\n")
+        pdf = art.get("pdf_url")
+        md.append(f"##### {art['article']}（{art['title']}）")
+        if pdf:
+            md.append(f"🔗 [PDFリンクを見る]({pdf})\n")
+
+        for cl in art["clauses"]:
+            md.append(f"###### ● {cl['clause']}：{cl['overall']}")
+            for req in cl["requirements"]:
+                md.append(f"""
+- **R{req["req_id"]}**: {req["text"]}
+    - 判定: {req["judgement"]}
+    - 信頼度: {req["confidence"]:.2f}
+    - 理由: {req["reasoning"]}
+""")
+
+    # ---- 過去事例（今はダミー：将来RAG） ----
+    md.append("---")
+    md.append("#### 🛠 過去・類似不具合事例（参考）")
+
+    past_cases = [
+        {"year": 2022, "title": "前照灯 青色点灯の不適合", "category": "灯火",
+         "desc": "青色LEDが原因で不適合。"},
+        {"year": 2021, "title": "制動灯 光度不足", "category": "灯火",
+         "desc": "光度が基準値不足で不適合。"}
+    ]
+
+    for case in past_cases:
+        md.append(f"""
+##### ● {case["year"]}年「{case["title"]}」
+- 区分：{case["category"]}
+- 内容：{case["desc"]}
+""")
+
+    return "\n".join(md)
+
+
+
+if prompt := st.chat_input("メッセージを入力してください", accept_file="multiple"):
+
+    # ユーザー発言を履歴へ
+    # st.session_state.messages.append({"role": "user", "content": prompt})
+    user_text = prompt.text if hasattr(prompt, "text") else str(prompt)
+
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_text
+    })
+    # -------------------------
+    # ★ 法令適合判定モード
+    # -------------------------
+    if mode == "法令適合判定":
+        graph = build_judgement_graph()
+
+        with st.spinner("適合性を判定中…"):
+            state = graph.invoke({"input_text": prompt})
+
+        final = state["final_result"]
+        md = generate_judgement_markdown(final)
+
+        st.session_state.messages.append(
+            {"role": "assistant", "content": md}
+        )
+        # ★★★ これがないと画面に反映されない ★★★
+        st.rerun()
+
+        # graph = build_judgement_graph()
+        #
+        # with st.spinner("法令適合性を判定中…"):
+        #     result_state = graph.invoke({"input_text": prompt})
+        #
+        # final = result_state["final_result"]
+        #
+        # # ★ 判定結果をそのまま会話に追加
+        # output_text = "### 📘 法令適合判定 結果\n"
+        #
+        # for art in final["articles"]:
+        #     output_text += f"#### {art['article']}（{art['title']}）\n"
+        #     for cl in art["clauses"]:
+        #         output_text += f"- **{cl['clause']}：{cl['overall']}**\n"
+        #         for req in cl["requirements"]:
+        #             output_text += f"    - R{req['req_id']} {req['text']}\n"
+        #             output_text += f"        - 判定：{req['judgement']}\n"
+        #             output_text += f"        - 信頼度：{req['confidence']:.2f}\n"
+        #             output_text += f"        - 理由：{req['reasoning']}\n"
+        #
+        # st.session_state.messages.append({
+        #     "role": "assistant",
+        #     "content": output_text
+        # })
+
+    # -------------------------
+    # 通常チャット / PDF解析 → GPT 応答
+    # -------------------------
+    else:
+        # -------------------------
+        # 通常チャット / PDF解析 → GPT 応答
+        # -------------------------
+        from openai import OpenAI
+
+        client = OpenAI()
+
+        # ChatInputValue → 純テキストへ変換
+        user_text = prompt.text if hasattr(prompt, "text") else str(prompt)
+        with st.spinner("LLMへ問い合わせ中…"):
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"あなたは '{mode}' モードのAIアシスタントです。",
+                            }
+                        ]
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_text}
+                        ]
+                    },
+                ],
+                temperature=0.2,
+            )
+            gpt_answer = completion.choices[0].message.content
+
+        st.session_state.messages.append(
+            {"role": "assistant", "content": gpt_answer}
+        )
+        # ★★★ これがないと画面に反映されない ★★★
+        st.rerun()
+    # # -------------------------
+    # # 通常チャット / PDF解析（ダミー）
+    # # -------------------------
+    # else:
+    #     dummy_response = f"これは **{mode} モード** のダミー回答です。\n\n入力: `{prompt}`"
+    #     st.session_state.messages.append({"role": "assistant", "content": dummy_response})
+

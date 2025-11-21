@@ -6,7 +6,47 @@ import streamlit as st
 #             st.write(msg["content"])
 import streamlit as st
 
+# def render_chat(messages):
+#     st.markdown("""
+#     <style>
+#         .user-msg-container {
+#             width: 100%;
+#             display: flex;
+#             justify-content: flex-end;
+#             margin: 8px 0;
+#         }
+#         .user-bubble {
+#             max-width: 75%;
+#             background: #e8f1ff;
+#             padding: 12px 16px;
+#             border-radius: 12px;
+#             border: 1px solid #c9ddff;
+#             font-size: 15px;
+#             line-height: 1.6;
+#         }
+#     </style>
+#     """, unsafe_allow_html=True)
+#
+#     for msg in messages:
+#         role = msg["role"]
+#         content = msg["content"]
+#         msg_type = msg.get("type", "markdown")
+#
+#         if role == "user":
+#             st.markdown(
+#                 f"""
+#                 <div class="user-msg-container">
+#                     <div class="user-bubble">{content}</div>
+#                 </div>
+#                 """,
+#                 unsafe_allow_html=True
+#             )
+#         else:
+#             # Markdown / 判定AI も Markdown 出力
+#             st.markdown(content)
+
 def render_chat(messages):
+    # ユーザーバブル CSS
     st.markdown("""
     <style>
         .user-msg-container {
@@ -27,10 +67,12 @@ def render_chat(messages):
     </style>
     """, unsafe_allow_html=True)
 
+    # --------------------------
+    #  メッセージ表示
+    # --------------------------
     for msg in messages:
         role = msg["role"]
         content = msg["content"]
-        msg_type = msg.get("type", "markdown")
 
         if role == "user":
             st.markdown(
@@ -42,9 +84,27 @@ def render_chat(messages):
                 unsafe_allow_html=True
             )
         else:
-            # Markdown / 判定AI も Markdown 出力
             st.markdown(content)
 
+    # --------------------------
+    #  スクロールアンカー（★重要）
+    # --------------------------
+    st.markdown('<div id="scroll_target"></div>', unsafe_allow_html=True)
+
+    # --------------------------
+    #  ChatGPT風オートスクロール
+    # --------------------------
+    st.markdown(
+        """
+        <script>
+            const el = document.getElementById("scroll_target");
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "end" });
+            }
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
 
 def render_chat_2col(messages):
 
